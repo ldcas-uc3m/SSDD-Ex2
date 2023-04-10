@@ -5,10 +5,12 @@ Definición de las estructuras de Petición y Respuesta
 #ifndef _COMM_H_
 #define _COMM_H_
 
-#define MAX_NAME_COLA 80
+#include <endian.h>
+#include <stdint.h>
+
 #define MAX_VALUE1 256
-#define MQUEUE_SIZE 10
-#define SERVER_Q_NAME "/Super-cool-server-queue-thingy"
+#define SERVER_PUERTO 4500
+#define SERVER_DIR 5
 
 
 struct Tupla {
@@ -35,15 +37,11 @@ struct Peticion {
         - 4: exist
         - 5: copy_key
         - 6: shutdown
-    NOMBRE: nombre de la cola del servidor
-    COLA_CLIENT: nombre de la cola del cliente
     VALUE: tupla con los datos que se van a almacenar
     ALT_KEY: almacenará key2 para copy_key()
     */
 
     int opcode;
-    char nombre[MAX_NAME_COLA];
-    char* cola_client;
     struct Tupla value;
     int alt_key;
 };
@@ -60,5 +58,19 @@ struct Respuesta {
     struct Tupla value;
 };
 
+
+void double_to_network(double *data) {
+    uint64_t tmp;
+    memcpy(&tmp, data, sizeof(double));
+    tmp = htole64(tmp);
+    memcpy(data, &tmp, sizeof(uint64_t));
+}
+
+void double_to_host(double *data) {
+    uint64_t tmp;
+    memcpy(&tmp, data, sizeof(double));
+    tmp = le64toh(tmp);
+    memcpy(data, &tmp, sizeof(uint64_t));
+}
 
 #endif

@@ -5,8 +5,13 @@ Implementación de las operaciones del cliente
 #include <stdio.h>
 #include <mqueue.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
 
 #include "claves.h"
 #include "comm.h"
@@ -17,168 +22,185 @@ Implementación de las operaciones del cliente
 #define MODIFY_VALUE 3
 #define EXIST 4
 #define COPY_KEY 5
-#define SHUTDOWN 6
 
-#define NUM_MENSAJES 10;
+#define NUM_MENSAJES 10
 
-char *nameColaCliente = NULL;
+#define DOMINIO AF_INET
 
-mqd_t abrirColaServer(){
-    mqd_t qc = mq_open(SERVER_Q_NAME, O_WRONLY);  // client queue
-    if (qc == -1) {
-        perror("No se puede abrir la cola del servidor");
+#define TIPO SOCK_STREAM
+
+#define PROTOCOLO 0
+
+int create_socket(int *socket_desc) {
+    // Read env variables
+    char *IP_SERVER_STR = getenv("IP_TUPLAS");
+    char *PORT_SERVER_STR = getenv("PORT_TUPLAS");
+    
+    if (IP_SERVER_STR == NULL) {
+        printf("Necesitas definir \"IP_TUPLAS\"");
         return -1;
     }
-    return qc;
-}
-
-
-
-mqd_t abrirColaCliente(){
-
-    mqd_t qs;  // server queue
-    struct mq_attr q_attr;
-
-    q_attr.mq_maxmsg = MQUEUE_SIZE;
-    q_attr.mq_msgsize = sizeof(struct Respuesta);
-
-    // init queue
-    qs = mq_open(nameColaCliente, O_CREAT|O_RDONLY, 0700, &q_attr);
-    if (qs == -1) {
-        perror("No se puede crear la cola del servidor\n");
+    if (PORT_SERVER_STR == NULL) {
+        printf("Necesitas definir \"PORT_SERVER_STR\"");
         return -1;
     }
 
-    return qs;
-}
+    short int PORT_SERVER = atoi(PORT_SERVER_STR);
 
-int cerrarCola(mqd_t queue_id){
-    if (mq_close(queue_id) !=-1){
-        return 0;
-    }else{
+    // Create socket
+    int socket_fd;
+	struct sockaddr_in server;
+
+	socket_fd = socket(DOMINIO , TIPO , PROTOCOLO);
+	
+	if (socket_fd == -1)
+	{
+		printf("No se pudo crear el socket");
         return -1;
-    }
-}
+	}
 
-int sendPeticion(struct Peticion *pet, struct Respuesta *res){
-    //inicializar las queues
-    mqd_t q_server = abrirColaServer();
-    mqd_t q_cliente = abrirColaCliente();
+    server.sin_addr.s_addr = inet_addr(IP_SERVER_STR);
+	server.sin_family = AF_INET;
+	server.sin_port = htons( PORT_SERVER );
 
-    if (q_server == -1 || q_cliente == -1){
-        return -1;
-    }
+	//Connect to remote server
+	if (connect(socket_fd , (struct sockaddr *)&server , sizeof(server)) == -1)
+	{
+		printf("Error al connectar con el servidor");
+		return -1;
+	}
 
-    //Mandar la informacion
-    if (mq_send(q_server, (const char*) pet, sizeof(pet), 0)==-1){
-        mq_close(q_cliente);
-        mq_close(q_server);
-        return -1;
-    }
-
-    // Esperar a la respuesta
-    if (mq_receive(q_cliente, (char*) res, sizeof(struct Respuesta), 0)==-1){
-        mq_close(q_cliente);
-        mq_close(q_server);
-        return -1;
-    }
-
-    mq_close(q_cliente);
-    mq_close(q_server);
-
-    if (res->result != 0){
-        // if (nameColaCliente){
-        //     mq_unlink(nameColaCliente);
-        // }
-        return -1;
-    }
-
+    *socket_desc = socket_fd;
     return 0;
 }
 
 
 int init(void) {
 
-    nameColaCliente = (char *) malloc(MAX_NAME_COLA * sizeof(char));
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
 
-    char* pid = (char *) malloc(MAX_NAME_COLA * sizeof(char));
-
-    sprintf(pid,"%ld", (unsigned long int) pthread_self());
-
-    strcat(nameColaCliente, pid);
-    free(pid);
-
-    struct Peticion pet;
-    pet.opcode = INIT;
-    pet.cola_client = nameColaCliente;
-
-    struct Respuesta res;
-
-    int resultCode = sendPeticion(&pet, &res);
-
-    if (resultCode==-1){
-        free(nameColaCliente);
+    if (status_create != 0) {
         return -1;
     }
 
-    return 0;
+    // Enviar peticion
+    int opcode = htonl(INIT);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        return -1;
+    }else{
+        return 0;
+    }
 }
 
 
 int set_value(int key, char* value1, int value2, double value3) {
 
-    struct Tupla tuple;
     if (strlen(value1)>256){
         return -1;
     }
 
-    tuple.clave = key;
-    strcpy(tuple.value1, value1);
-    tuple.value2 = value2;
-    tuple.value3 = value3;
-
-    struct Peticion pet;
-
-    pet.opcode = SET_VALUE;
-    pet.value = tuple;
-    pet.cola_client = nameColaCliente;
-
-    struct Respuesta res;
+    char value1_[MAX_VALUE1];
+    memcpy(value1_, value1, strlen(value1));
     
 
-    int resultCode = sendPeticion(&pet, &res);
-    
-    if (res.result==-1 || resultCode==-1){
-        free(nameColaCliente);
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
+
+    if (status_create != 0) {
         return -1;
     }
+
+    // Enviar peticion
+    int opcode = htonl(SET_VALUE);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+
+    int key_send = htonl(key);
+    send(socket_desc , &key_send , sizeof(key_send) , 0);
+
+    send(socket_desc , &value1_ , MAX_VALUE1, 0);
+
+    int value2_send = htonl(value2);
+    send(socket_desc , &value2_send , sizeof(value2_send) , 0);
+
+    //send double
+    double_to_network(&value3);
+    send(socket_desc , &value3 , sizeof(value3) , 0);
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        return -1;
+    }
+
     return 0;
 }
 
 
 int get_value(int key, char* value1, int* value2, double* value3) {
 
-    struct Tupla tuple;
-    tuple.clave = key;
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
 
-    struct Peticion pet;
-
-    pet.opcode = GET_VALUE;
-    pet.value = tuple;
-    pet.cola_client = nameColaCliente; 
-    struct Respuesta res;
-        
-    int resultCode = sendPeticion(&pet, &res);
-
-    //Store informacion
-    if (res.result==-1 || resultCode==-1){
-        free(nameColaCliente);
+    if (status_create != 0) {
         return -1;
     }
 
-    strcpy(value1, tuple.value1);
-    *value2 = res.value.value2;
-    *value3 = res.value.value3;
+    // Enviar peticion
+    int opcode = htonl(GET_VALUE);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+
+    int key_send = htonl(key);
+    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
+
+    recv(socket_desc, &value1 , MAX_VALUE1 , 0); 
+    
+    recv(socket_desc, &value2 , sizeof(*value2) , 0);
+    *value2 = ntohl(*value2);
+
+    //receive double
+    recv(socket_desc, &value3 , sizeof(*value3) , 0);
+    double_to_host(value3);
+
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        return -1;
+    }
 
     return 0;
 }
@@ -186,91 +208,115 @@ int get_value(int key, char* value1, int* value2, double* value3) {
 
 int modify_value(int key, char* value1, int value2, double value3) {
 
-    struct Tupla tuple;
+
     if (strlen(value1)>256){
         return -1;
     }
 
-    tuple.clave = key;
-    strcpy(tuple.value1, value1);
-    tuple.value2 = value2;
-    tuple.value3 = value3;
-
-    struct Peticion pet;
-
-    pet.opcode = MODIFY_VALUE;
-    pet.value = tuple;
-    pet.cola_client = nameColaCliente; 
+    char value1_[MAX_VALUE1];
+    memcpy(value1_, value1, strlen(value1));
     
-    struct Respuesta res;
 
-    int resultCode = sendPeticion(&pet, &res);
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
 
-    if (res.result==-1 || resultCode==-1){
-        free(nameColaCliente);
+    if (status_create != 0) {
         return -1;
     }
+
+    // Enviar peticion
+    int opcode = htonl(MODIFY_VALUE);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+
+    int key_send = htonl(key);
+    send(socket_desc , &key_send , sizeof(key_send) , 0);
+
+    send(socket_desc , &value1_ , MAX_VALUE1, 0);
+
+    int value2_send = htonl(value2);
+    send(socket_desc , &value2_send , sizeof(value2_send) , 0);
+
+    //send double
+    double_to_network(&value3);
+    send(socket_desc , &value3 , sizeof(value3) , 0);
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        return -1;
+    }
+
     return 0;
 }
 
 
 int exist(int key) {
 
-    struct Tupla tuple;
-    tuple.clave = key;
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
 
-    struct Peticion pet;
-    pet.opcode = EXIST;
-    pet.value = tuple;
-    pet.cola_client = nameColaCliente; 
-
-    //Ver el codigo de error
-    struct Respuesta res;
-
-    int resultCode = sendPeticion(&pet, &res);
-
-    if (res.result==-1 || resultCode==-1){
-        free(nameColaCliente);
+    if (status_create != 0) {
         return -1;
     }
 
-    return res.result;
+    // Enviar peticion
+    int opcode = htonl(EXIST);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+
+    int key_send = htonl(key);
+    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
+    return res;
 }
 
 
 int copy_key(int key1, int key2) {
+    
+    int socket_desc;
+    int status_create = create_socket(&socket_desc);
 
-    struct Tupla tuple;
-    tuple.clave = key1;
-
-    struct Peticion pet;
-    pet.opcode = COPY_KEY;
-    pet.value = tuple;
-    pet.alt_key = key2;
-    pet.cola_client = nameColaCliente;
-
-    //Ver el codigo de error
-    struct Respuesta res;
-
-    int resultCode = sendPeticion(&pet, &res);
-
-    if (res.result==-1 || resultCode==-1){
-        free(nameColaCliente);
+    if (status_create != 0) {
         return -1;
     }
+
+    // Enviar peticion
+    int opcode = htonl(COPY_KEY);
+    send(socket_desc , &opcode , sizeof(opcode) , 0);
+
+    int key1_send = htonl(key1);
+    send(socket_desc , &key1_send , sizeof(key1_send) , 0);
+
+    int key2_send = htonl(key2);
+    send(socket_desc , &key1_send , sizeof(key2_send) , 0);
+    
+    
+    // Recibir respuesta
+    int res;
+    recv(socket_desc, &res , sizeof(res) , 0);
+    res = ntohl(res);
+
+    if (res == -1) {
+        return -1;
+    }
+
     return 0;
-}
-
-int shutdown(void){
-
-    struct Peticion pet;
-    pet.opcode = SHUTDOWN;
-
-    struct Respuesta res;
-
-    int resultCode = sendPeticion(&pet, &res);
-    mq_unlink(nameColaCliente);
-    free(nameColaCliente);
-
-    return resultCode;
 }
