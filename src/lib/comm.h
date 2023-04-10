@@ -36,7 +36,6 @@ struct Peticion {
         - 3: modify_value
         - 4: exist
         - 5: copy_key
-        - 6: shutdown
     VALUE: tupla con los datos que se van a almacenar
     ALT_KEY: almacenará key2 para copy_key()
     */

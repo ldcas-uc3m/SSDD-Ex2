@@ -14,7 +14,7 @@ all: $(BIN_FILES)
 cliente: cliente.o libclaves.so linked_list.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 	
-servidor: servidor.o server_impl.o linked_list.o
+servidor: servidor.o server_impl.o linked_list.o lines.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 test_client: test_client.o linked_list.o
