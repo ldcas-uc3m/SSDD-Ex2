@@ -26,7 +26,6 @@ test_server: test_server.o linked_list.o
 test: test_server.o test_client.o servidor libclaves.so
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 	
-# TODO: libclaves.so
 libclaves.so: claves.o
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
