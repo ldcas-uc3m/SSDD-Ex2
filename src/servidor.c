@@ -1,11 +1,15 @@
 #include <stdio.h>
-#include <mqueue.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "lib/server_impl.h"
 #include "lib/comm.h"
@@ -21,17 +25,17 @@ bool copiado = false;  // variable condicional de control
 // sync printfs
 pthread_mutex_t mutex_stdout;  // mutex for stdout
 
-// shutdown
-bool shutdown = false;
-pthread_mutex_t mutex_shutdown;
+// shutdown_server
+bool shutdown_server = false;
+pthread_mutex_t mutex_shutdown_server;
 
 
 void sigintHandler(int sig_num) {
     // signal handler for SIGINT
 
-    pthread_mutex_lock(&mutex_shutdown);
-    shutdown = true;
-    pthread_mutex_unlock(&mutex_shutdown);
+    pthread_mutex_lock(&mutex_shutdown_server);
+    shutdown_server = true;
+    pthread_mutex_unlock(&mutex_shutdown_server);
 
     printf("Shutting down...\n");
     fflush(stdout);
@@ -40,9 +44,8 @@ void sigintHandler(int sig_num) {
 
 void *tratar_peticion(int* sd) {
     struct Peticion pet;
-    char buff[MAX_LINE];
 
-    // copy petition
+    // copy sd
 	pthread_mutex_lock(&mutex_sd);
 
     int local_sd = *sd;  // copy sd
@@ -52,71 +55,166 @@ void *tratar_peticion(int* sd) {
 	pthread_mutex_unlock(&mutex_sd);
 
 
-    // TODO: handle petition
-
-    pet.opcode = p->opcode;
-    pet.cola_client = p->cola_client;
-    pet.alt_key = p->alt_key;
-    strcpy(pet.value.value1, p->value.value1);
-    pet.value.value2 = p->value.value2;
-    pet.value.value3 = p->value.value3;
-
+    // read opcode
+    read(local_sd, &(pet.opcode), sizeof(pet.opcode));
+    pet.opcode = ntohl(pet.opcode);
 
 
     // treat petition
     struct Respuesta res;
 
-    pthread_mutex_lock(&mutex_stdout);
-    printf("%i: Received {opcode: %i, key: %i, value1: %s, value2: %i, value3: %f} from %s\n", getpid(), pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3, pet.cola_client);
-    pthread_mutex_unlock(&mutex_stdout);
+    // pthread_mutex_lock(&mutex_stdout);
+    // printf("%i: Received {opcode: %i, key: %i, value1: %s, value2: %i, value3: %f} from %s\n", getpid(), pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3, pet.cola_client);
+    // pthread_mutex_unlock(&mutex_stdout);
 
     switch (pet.opcode) {
         case 0:  // init
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received init\n", local_sd);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = init();
 
             // answer
-            sendMessage(local_sd, res.result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
             break;
 
         case 1:  // set
+
+            // get arguments
+            read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
+            pet.value.clave = ntohl(pet.value.clave);
+
+            readLine(local_sd, &(pet.value.value1), MAX_VALUE1 + 1);
+
+            read(local_sd, &(pet.value.value2), sizeof(pet.value.value2));
+            pet.value.value2 = ntohl(pet.value.value2);
+
+            read(local_sd, &(pet.value.value3), sizeof(pet.value.value3));
+            double_to_host(&(pet.value.value3));
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received {opcode %i (init), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = set(pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
 
             // answer
-            sendMessage(local_sd, res.result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
+            
             break;
 
         case 2:  // get
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received init\n", local_sd);
+            pthread_mutex_unlock(&mutex_stdout);
+            
+            // get arguments
+            read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
+            pet.value.clave = ntohl(pet.value.clave);
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received {opcode: %i (get), key: %i}\n", local_sd, pet.opcode, pet.value.clave);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = get(pet.value.clave, res.value.value1, &(res.value.value2), &(res.value.value3));
 
             // answer
-            sendMessage(local_sd, res.result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
+
+            sendMessage(local_sd, &(res.value.value1), strlen(res.value.value1) + 1);
+
+            write(local_sd, &(res.value.value2), sizeof(res.value.value2));
+
+            double_to_network(&(res.value.value3));
+            write(local_sd, &(res.value.value3), sizeof(res.value.value3));
+
             break;
         
         case 3:  // modify
+
+            // get arguments
+            read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
+            pet.value.clave = ntohl(pet.value.clave);
+
+            readLine(local_sd, &(pet.value.value1), MAX_VALUE1 + 1);
+
+            read(local_sd, &(pet.value.value2), sizeof(pet.value.value2));
+            pet.value.value2 = ntohl(pet.value.value2);
+
+            read(local_sd, &(pet.value.value3), sizeof(pet.value.value3));
+            double_to_host(&(pet.value.value3));
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received {opcode %i (modify), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = modify(pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
 
             // answer
-            sendMessage(local_sd, res.result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
+
             break;
         
         case 4:  // exist
+            // get arguments
+            read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
+            pet.value.clave = ntohl(pet.value.clave);
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received {opcode %i (exist), key: %i}\n", local_sd, pet.opcode, pet.value.clave);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = exist(pet.value.clave);
 
             // answer
-            sendMessage(local_sd, res.result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
+
             break;
 
         case 5:  // copyKey
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received init\n", local_sd);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // get arguments
+            read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
+            pet.value.clave = ntohl(pet.value.clave);
+            
+            read(local_sd, &(pet.alt_key), sizeof(pet.alt_key));
+            pet.alt_key = ntohl(pet.alt_key);
+
+            pthread_mutex_lock(&mutex_stdout);
+            printf("%i: Received {opcode %i (exist), key: %i, alt_key: %i}\n", local_sd, pet.opcode, pet.value.clave, pet.alt_key);
+            pthread_mutex_unlock(&mutex_stdout);
+
+            // execute
             res.result = copy_key(pet.value.clave, pet.alt_key);
 
             // answer
-            int result = htonl(res.result);
-            sendMessage(local_sd, &result, sizeof(res.result));
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
+
             break;
 
         default:
             res.result = -1;
             perror("Undefined operation code\n");
+
+            // answer
+            res.result = htonl(res.result);
+            write(local_sd, &(res.result), sizeof(res.result));
 
             break;
     }
@@ -129,51 +227,78 @@ void *tratar_peticion(int* sd) {
 
 
 int main(int argc, char* argv[]) {
+    int sd, newsd;
+    socklen_t size;
+    struct sockaddr_in server_addr, client_addr;
+
+
     // signal handler
     signal(SIGINT, sigintHandler);
 
-    // TODO: replace queue
 
-    // queue stuff
-    mqd_t qs;  // server queue
-    struct mq_attr q_attr;
-    struct Peticion msg;  // message to receive
+    // read env variables
+    char *PORT_SERVER_STR = getenv("PORT_TUPLAS");
+    
+    if (PORT_SERVER_STR == NULL) {
+        printf("Necesitas definir \"PORT_SERVER_STR\"");
+        return -1;
+    }
 
-    q_attr.mq_maxmsg = MQUEUE_SIZE;
-    q_attr.mq_msgsize = sizeof(struct Peticion);
 
     // thread stuff
     pthread_attr_t t_attr;
     pthread_t thid;
 
 
-    // init queue
-    qs = mq_open(SERVER_Q_NAME, O_CREAT|O_RDONLY, 0700, &q_attr);
-    if (qs == -1) {
-        perror("No se puede crear la cola del servidor\n");
-        return -1;
-    }
-
-
     // init mutex and cond
 	pthread_cond_init(&c_sd, NULL);
 	pthread_mutex_init(&mutex_sd, NULL);
-	pthread_mutex_init(&mutex_shutdown, NULL);
+	pthread_mutex_init(&mutex_shutdown_server, NULL);
 	pthread_mutex_init(&mutex_stdout, NULL);
 
 	pthread_attr_init(&t_attr);
     pthread_attr_setdetachstate(&t_attr, PTHREAD_CREATE_DETACHED);
 
 
-    /* MAIN LOOP */
-    while (true) {
-        // TODO: replace queue
+    // configure socket
+    if ((sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
+        perror("Error in socket");
+        exit(1);
+    }
 
-        // receive message
-        mq_receive(qs, (char*) &msg, sizeof(struct Peticion), 0);
+    int val = 1;
+    if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char*) &val, sizeof(int)) < 0) {
+        perror("Error in option");
+        exit(1);
+    }
+    
+    bzero((char*) &server_addr, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(atoi(argv[1]));
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+
+    // bind
+    if (bind(sd, (struct sockaddr*) &server_addr, sizeof(server_addr)) < 0) {
+        perror("Error in bind\n");
+        return -1;
+    }
+
+    /* MAIN LOOP */
+    listen(sd, SOMAXCONN);  // open socket
+
+    while (true) {
+
+        // accept petition
+        newsd = accept(sd, (struct sockaddr*) &client_addr, &size);
+        if (newsd < 0) {
+            perror("Error in accept\n");
+            return -1;
+        }
+        printf("Client %i connected", newsd);
 
         // create thread
-        if (pthread_create(&thid, &t_attr, (void*) tratar_peticion, (void*) &msg) == 0) {  // wait to copy petition
+        if (pthread_create(&thid, &t_attr, (void*) tratar_peticion, (void*) &newsd) == 0) {  // wait to copy petition
             // mutex logic
             pthread_mutex_lock(&mutex_sd);
 
@@ -190,19 +315,19 @@ int main(int argc, char* argv[]) {
         }
 
         // exit condition
-        pthread_mutex_lock(&mutex_shutdown);
-        if (shutdown) break;
-        pthread_mutex_unlock(&mutex_shutdown);
+        pthread_mutex_lock(&mutex_shutdown_server);
+        if (shutdown_server) break;
+        pthread_mutex_unlock(&mutex_shutdown_server);
     }
 
 
     // cleanup
-    mq_close(qs);
+    close(sd);
     destroy();
 
 	pthread_cond_destroy(&c_sd);
 	pthread_mutex_destroy(&mutex_sd);
-	pthread_mutex_destroy(&mutex_shutdown);
+	pthread_mutex_destroy(&mutex_shutdown_server);
 	pthread_mutex_destroy(&mutex_stdout);
 
 	exit(0);
