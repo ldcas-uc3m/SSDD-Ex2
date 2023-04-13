@@ -4,7 +4,7 @@ VPATH = lib tests  # path with source files not found in current dir
 CC = gcc
 
 CFLAGS = -g -I$(INSTALL_PATH)/include -Wall -fPIC
-LDFLAGS = -L$(INSTALL_PATH)/lib/
+LDFLAGS = -L$(INSTALL_PATH)/lib/ -Wl,-R$(DIR)/lib/linux '-Wl,-R$$ORIGIN'
 LDLIBS = -pthread -lm -lrt
 
 
@@ -26,7 +26,7 @@ test_server: test_server.o linked_list.o
 test: test_server.o test_client.o servidor libclaves.so
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 	
-libclaves.so: claves.o
+libclaves.so: claves.o comm.o
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 %.o: %.c

@@ -286,7 +286,6 @@ int main(int argc, char* argv[]) {
 
     /* MAIN LOOP */
     listen(sd, SOMAXCONN);  // open socket
-
     while (true) {
 
         // accept petition
@@ -313,13 +312,15 @@ int main(int argc, char* argv[]) {
             perror("Error al crear el thread\n");
             return -1;
         }
-
+        
         // exit condition
         pthread_mutex_lock(&mutex_shutdown_server);
-        if (shutdown_server) break;
+        if (shutdown_server) {
+            pthread_mutex_unlock(&mutex_shutdown_server);
+            break;
+        }
         pthread_mutex_unlock(&mutex_shutdown_server);
     }
-
 
     // cleanup
     close(sd);

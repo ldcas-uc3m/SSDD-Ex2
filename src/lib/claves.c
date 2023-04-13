@@ -91,7 +91,7 @@ int init(void) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
@@ -143,7 +143,7 @@ int set_value(int key, char* value1, int value2, double value3) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
@@ -179,7 +179,7 @@ int get_value(int key, char* value1, int* value2, double* value3) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
@@ -187,13 +187,13 @@ int get_value(int key, char* value1, int* value2, double* value3) {
     }
 
 
-    recv(socket_desc, &value1 , MAX_VALUE1 , 0); 
+    read(socket_desc, value1 , MAX_VALUE1); 
     
-    recv(socket_desc, &value2 , sizeof(*value2) , 0);
+    read(socket_desc, &value2 , sizeof(*value2));
     *value2 = ntohl(*value2);
 
     //receive double
-    recv(socket_desc, &value3 , sizeof(*value3) , 0);
+    read(socket_desc, &value3 , sizeof(*value3));
     double_to_host(value3);
 
     // Close socket
@@ -242,7 +242,7 @@ int modify_value(int key, char* value1, int value2, double value3) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
@@ -278,7 +278,7 @@ int exist(int key) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
@@ -311,7 +311,7 @@ int copy_key(int key1, int key2) {
     
     // Recibir respuesta
     int res;
-    recv(socket_desc, &res , sizeof(res) , 0);
+    read(socket_desc, &res , sizeof(res));
     res = ntohl(res);
 
     if (res == -1) {
