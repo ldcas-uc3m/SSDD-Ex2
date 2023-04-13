@@ -24,7 +24,7 @@ int main() {
 
     int key1 = 0;
     err = exist(key1);
-    if (err==0){
+    if (err==1){
         int newKey = 1;
         err=copy_key(key1, newKey);
         if (err!=0){
@@ -48,7 +48,7 @@ int main() {
             return -1;
         }
         
-    }else{
+    }else if(err==-1){
         return -1;
     }
 

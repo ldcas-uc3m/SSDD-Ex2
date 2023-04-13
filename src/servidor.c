@@ -97,7 +97,7 @@ void *tratar_peticion(int* sd) {
             double_to_host(&(pet.value.value3));
 
             pthread_mutex_lock(&mutex_stdout);
-            printf("%i: Received {opcode %i (init), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
+            printf("%i: Received {opcode %i (set), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
             pthread_mutex_unlock(&mutex_stdout);
 
             // execute
@@ -110,9 +110,6 @@ void *tratar_peticion(int* sd) {
             break;
 
         case 2:  // get
-            pthread_mutex_lock(&mutex_stdout);
-            printf("%i: Received init\n", local_sd);
-            pthread_mutex_unlock(&mutex_stdout);
             
             // get arguments
             read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));
@@ -177,6 +174,10 @@ void *tratar_peticion(int* sd) {
             // execute
             res.result = exist(pet.value.clave);
 
+            pthread_mutex_lock(&mutex_stdout);
+            printf("Exists res : %i\n", res.result);
+            pthread_mutex_unlock(&mutex_stdout);
+
             // answer
             res.result = htonl(res.result);
             write(local_sd, &(res.result), sizeof(res.result));
@@ -184,9 +185,6 @@ void *tratar_peticion(int* sd) {
             break;
 
         case 5:  // copyKey
-            pthread_mutex_lock(&mutex_stdout);
-            printf("%i: Received init\n", local_sd);
-            pthread_mutex_unlock(&mutex_stdout);
 
             // get arguments
             read(local_sd, &(pet.value.clave), sizeof(pet.value.clave));

@@ -29,7 +29,7 @@ Implementación de las operaciones del cliente
 
 #define TIPO SOCK_STREAM
 
-#define PROTOCOLO 0
+#define PROTOCOLO IPPROTO_TCP
 
 int create_socket(int *socket_desc) {
     // Read env variables
@@ -306,7 +306,7 @@ int copy_key(int key1, int key2) {
     send(socket_desc , &key1_send , sizeof(key1_send) , 0);
 
     int key2_send = htonl(key2);
-    send(socket_desc , &key1_send , sizeof(key2_send) , 0);
+    send(socket_desc , &key2_send , sizeof(key2_send) , 0);
     
     
     // Recibir respuesta
