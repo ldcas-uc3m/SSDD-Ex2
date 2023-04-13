@@ -129,7 +129,7 @@ void *tratar_peticion(int* sd) {
             res.result = htonl(res.result);
             write(local_sd, &(res.result), sizeof(res.result));
 
-            sendMessage(local_sd, &(res.value.value1), strlen(res.value.value1) + 1);
+            sendMessage(local_sd, res.value.value1, strlen(res.value.value1) + 1);
 
             write(local_sd, &(res.value.value2), sizeof(res.value.value2));
 
@@ -332,3 +332,4 @@ int main(int argc, char* argv[]) {
 
 	exit(0);
 }
+

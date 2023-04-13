@@ -7,6 +7,7 @@ Definición de las estructuras de Petición y Respuesta
 
 #include <endian.h>
 #include <stdint.h>
+#include <string.h>
 
 #define MAX_VALUE1 256
 #define SERVER_PUERTO 4500
@@ -58,18 +59,8 @@ struct Respuesta {
 };
 
 
-void double_to_network(double *data) {
-    uint64_t tmp;
-    memcpy(&tmp, data, sizeof(double));
-    tmp = htole64(tmp);
-    memcpy(data, &tmp, sizeof(uint64_t));
-}
-
-void double_to_host(double *data) {
-    uint64_t tmp;
-    memcpy(&tmp, data, sizeof(double));
-    tmp = le64toh(tmp);
-    memcpy(data, &tmp, sizeof(uint64_t));
-}
+void double_to_network(double *data) ;
+void double_to_host(double *data) ;
 
 #endif
+

@@ -11,10 +11,10 @@ LDLIBS = -pthread -lm -lrt
 all: $(BIN_FILES)
 .PHONY : all
 
-cliente: cliente.o libclaves.so linked_list.o
+cliente: cliente.o libclaves.so linked_list.o comm.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 	
-servidor: servidor.o server_impl.o linked_list.o lines.o
+servidor: servidor.o server_impl.o linked_list.o lines.o comm.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 test_client: test_client.o linked_list.o
