@@ -117,6 +117,7 @@ int init(void) {
     // Close socket
     int closing = close(socket_desc);
     if (closing ==-1){
+        printf("Error al cerrar el socket\n");
         return -1;
     }else{
         return 0;
@@ -178,6 +179,7 @@ int set_value(int key, char* value1, int value2, double value3) {
     // Close socket
     int closing = close(socket_desc);
     if (closing ==-1){
+        printf("Error al cerrar el socket\n");
         return -1;
     }
 
@@ -234,6 +236,7 @@ int get_value(int key, char* value1, int* value2, double* value3) {
     // Close socket
     int closing = close(socket_desc);
     if (closing ==-1){
+        printf("Error al cerrar el socket\n");
         return -1;
     }
 
@@ -292,6 +295,7 @@ int modify_value(int key, char* value1, int value2, double value3) {
     // Close socket
     int closing = close(socket_desc);
     if (closing ==-1){
+        printf("Error al cerrar el socket\n");
         return -1;
     }
 
@@ -327,7 +331,14 @@ int exist(int key) {
         return -1;
     }
 
-    return res;
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        printf("Error al cerrar el socket\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 
@@ -362,6 +373,13 @@ int copy_key(int key1, int key2) {
     res = ntohl(res);
 
     if (res == -1) {
+        return -1;
+    }
+
+    // Close socket
+    int closing = close(socket_desc);
+    if (closing ==-1){
+        printf("Error al cerrar el socket\n");
         return -1;
     }
 

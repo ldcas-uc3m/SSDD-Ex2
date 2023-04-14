@@ -29,6 +29,8 @@ pthread_mutex_t mutex_stdout;  // mutex for stdout
 bool shutdown_server = false;
 pthread_mutex_t mutex_shutdown_server;
 
+int sd;
+
 
 void sigintHandler(int sig_num) {
     // signal handler for SIGINT
@@ -37,8 +39,19 @@ void sigintHandler(int sig_num) {
     shutdown_server = true;
     pthread_mutex_unlock(&mutex_shutdown_server);
 
-    printf("Shutting down...\n");
+    printf("\nShutting down...\n");
+
+    close(sd);
+    destroy();
+
+	pthread_cond_destroy(&c_sd);
+	pthread_mutex_destroy(&mutex_sd);
+	pthread_mutex_destroy(&mutex_shutdown_server);
+	pthread_mutex_destroy(&mutex_stdout);
+
     fflush(stdout);
+
+	exit(0);
 }
 
 
@@ -63,10 +76,7 @@ void *tratar_peticion(int* sd) {
 
     // treat petition
     struct Respuesta res;
-
-    // pthread_mutex_lock(&mutex_stdout);
-    // printf("%i: Received {opcode: %i, key: %i, value1: %s, value2: %i, value3: %f} from %s\n", getpid(), pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3, pet.cola_client);
-    // pthread_mutex_unlock(&mutex_stdout);
+    
 
     switch (pet.opcode) {
         case 0:  // init
@@ -103,7 +113,7 @@ void *tratar_peticion(int* sd) {
             pet.value.value3 = atof(buffer);
 
             pthread_mutex_lock(&mutex_stdout);
-            printf("Client %i: Received {opcode %i (set), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
+            printf("Client %i: Received {opcode: %i (set), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
             pthread_mutex_unlock(&mutex_stdout);
 
             // execute
@@ -157,7 +167,7 @@ void *tratar_peticion(int* sd) {
             pet.value.value3 = atof(buffer);
 
             pthread_mutex_lock(&mutex_stdout);
-            printf("Client %i: Received {opcode %i (modify), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
+            printf("Client %i: Received {opcode: %i (modify), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
             pthread_mutex_unlock(&mutex_stdout);
 
             // execute
@@ -175,7 +185,7 @@ void *tratar_peticion(int* sd) {
             pet.value.clave = atoi(buffer);
 
             pthread_mutex_lock(&mutex_stdout);
-            printf("Client %i: Received {opcode %i (exist), key: %i}\n", local_sd, pet.opcode, pet.value.clave);
+            printf("Client %i: Received {opcode: %i (exist), key: %i}\n", local_sd, pet.opcode, pet.value.clave);
             pthread_mutex_unlock(&mutex_stdout);
 
             // execute
@@ -197,7 +207,7 @@ void *tratar_peticion(int* sd) {
             pet.alt_key = atoi(buffer);
 
             pthread_mutex_lock(&mutex_stdout);
-            printf("Client %i: Received {opcode %i (exist), key: %i, alt_key: %i}\n", local_sd, pet.opcode, pet.value.clave, pet.alt_key);
+            printf("Client %i: Received {opcode: %i (exist), key: %i, alt_key: %i}\n", local_sd, pet.opcode, pet.value.clave, pet.alt_key);
             pthread_mutex_unlock(&mutex_stdout);
 
             // execute
@@ -228,13 +238,13 @@ void *tratar_peticion(int* sd) {
 
 
 int main(int argc, char* argv[]) {
-    int sd, newsd;
+    int newsd;
     socklen_t size;
     struct sockaddr_in server_addr, client_addr;
 
 
     // signal handler
-    // signal(SIGINT, sigintHandler);
+    signal(SIGINT, sigintHandler);
 
 
     // thread stuff
