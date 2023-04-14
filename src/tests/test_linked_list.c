@@ -143,22 +143,22 @@ void workload(int* number) {
 
     // copy number
     pthread_mutex_lock(&mutex_i);
-	int i = *number;
+	int id = *number;
 	copiado = true;  // update conditional variable
 	pthread_cond_signal(&c_i);  // signal one sleeping thread
 	pthread_mutex_unlock(&mutex_i);
 
     // do stuff
     char str[] = "caca";
-    setKey(&list, i, str, 420, 420.69);
-    existKey(list, i + 1);
-    setKey(&list, i + 1, str, 420, 420.69);
+    setKey(&list, id, str, 420, 420.69);
+    existKey(list, id + 1);
+    setKey(&list, id + 1, str, 420, 420.69);
 
-    modifyKey(&list, i, str, 421, 420.69);
+    modifyKey(&list, id, str, 421, 420.69);
 
-    copyKey(&list, i, i * NUM_THREADS);
+    copyKey(&list, id, id * NUM_THREADS);
 
-    deleteKey(&list, i);
+    deleteKey(&list, id);
 
     pthread_exit(NULL);
 }
