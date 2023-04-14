@@ -8,5 +8,14 @@ Universidad Carlos III de Madrid
 
 
 
-# Installation and execution
-export IP_TUPLAS=127.0. 0.1
+## Installation and execution
+```bash
+./servidor 8080
+```
+
+```bash
+export IP_TUPLAS=localhost
+export PORT_TUPLAS=8080
+
+./cliente
+```

@@ -59,8 +59,5 @@ struct Respuesta {
 };
 
 
-void double_to_network(double *data) ;
-void double_to_host(double *data) ;
-
 #endif
 

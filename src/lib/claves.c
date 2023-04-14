@@ -15,6 +15,7 @@ Implementación de las operaciones del cliente
 
 #include "claves.h"
 #include "comm.h"
+#include "lines.h"
 
 #define INIT 0
 #define SET_VALUE 1
@@ -24,33 +25,34 @@ Implementación de las operaciones del cliente
 #define COPY_KEY 5
 
 #define NUM_MENSAJES 10
-
 #define DOMINIO AF_INET
-
 #define TIPO SOCK_STREAM
-
 #define PROTOCOLO IPPROTO_TCP
 
+
 int create_socket(int *socket_desc) {
+    int socket_fd;
+	struct sockaddr_in server_addr;
+    struct hostent *hp;
+
     // Read env variables
     char *IP_SERVER_STR = getenv("IP_TUPLAS");
     char *PORT_SERVER_STR = getenv("PORT_TUPLAS");
     
     if (IP_SERVER_STR == NULL) {
-        printf("Necesitas definir \"IP_TUPLAS\"");
+        printf("Necesitas definir \"IP_TUPLAS\"\n");
         return -1;
     }
     if (PORT_SERVER_STR == NULL) {
-        printf("Necesitas definir \"PORT_SERVER_STR\"");
+        printf("Necesitas definir \"PORT_SERVER_STR\"\n");
         return -1;
     }
 
     short int PORT_SERVER = atoi(PORT_SERVER_STR);
 
-    // Create socket
-    int socket_fd;
-	struct sockaddr_in server;
+    // printf("Connecting to %i:%s\n", PORT_SERVER, IP_SERVER_STR);
 
+    // Create socket
 	socket_fd = socket(DOMINIO , TIPO , PROTOCOLO);
 	
 	if (socket_fd == -1)
@@ -59,14 +61,22 @@ int create_socket(int *socket_desc) {
         return -1;
 	}
 
-    server.sin_addr.s_addr = inet_addr(IP_SERVER_STR);
-	server.sin_family = AF_INET;
-	server.sin_port = htons( PORT_SERVER );
+    // Obtain Server address 
+    bzero((char*) &server_addr, sizeof(server_addr));
+    hp = gethostbyname(IP_SERVER_STR);
+    if (hp == NULL) {
+        perror("Error en gethostbyname");
+        exit(1);
+    }
+
+	memcpy(&(server_addr.sin_addr), hp->h_addr, hp->h_length);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT_SERVER);
 
 	//Connect to remote server
-	if (connect(socket_fd , (struct sockaddr *)&server , sizeof(server)) == -1)
+	if (connect(socket_fd , (struct sockaddr *)&server_addr , sizeof(server_addr)) == -1)
 	{
-		printf("Error al connectar con el servidor");
+		printf("Error al connectar con el servidor\n");
 		return -1;
 	}
 
@@ -76,23 +86,29 @@ int create_socket(int *socket_desc) {
 
 
 int init(void) {
-
     int socket_desc;
     int status_create = create_socket(&socket_desc);
+    char buffer[MAX_LINE];
 
     if (status_create != 0) {
         return -1;
     }
 
     // Enviar peticion
-    int opcode = htonl(INIT);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", INIT);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in init\n");
+    }
     
     
     // Recibir respuesta
     int res;
-    read(socket_desc, &res , sizeof(res));
-    res = ntohl(res);
+
+    if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
+        printf("Error in readLine\n");
+        return -1;
+    }
+    res = atoi(buffer);
 
     if (res == -1) {
         return -1;
@@ -109,6 +125,7 @@ int init(void) {
 
 
 int set_value(int key, char* value1, int value2, double value3) {
+    char buffer[MAX_LINE];
 
     if (strlen(value1)>256){
         return -1;
@@ -126,25 +143,33 @@ int set_value(int key, char* value1, int value2, double value3) {
     }
 
     // Enviar peticion
-    int opcode = htonl(SET_VALUE);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", SET_VALUE);
+    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
 
-    int key_send = htonl(key);
-    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    sprintf(buffer, "%i", key);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
 
-    send(socket_desc , &value1_ , MAX_VALUE1, 0);
+    sendMessage(socket_desc , value1_, strlen(value1) + 1);
+    
+    sprintf(buffer, "%i", value2);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
 
-    int value2_send = htonl(value2);
-    send(socket_desc , &value2_send , sizeof(value2_send) , 0);
 
-    //send double
-    double_to_network(&value3);
-    send(socket_desc , &value3 , sizeof(value3) , 0);
+    sprintf(buffer, "%f", value3);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
     
     // Recibir respuesta
-    int res;
-    read(socket_desc, &res , sizeof(res));
-    res = ntohl(res);
+    if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
+        printf("Error in readLine\n");
+        return -1;
+    }
+    int res = atoi(buffer);
 
     if (res == -1) {
         return -1;
@@ -161,6 +186,7 @@ int set_value(int key, char* value1, int value2, double value3) {
 
 
 int get_value(int key, char* value1, int* value2, double* value3) {
+    char buffer[MAX_LINE];
 
     int socket_desc;
     int status_create = create_socket(&socket_desc);
@@ -170,31 +196,40 @@ int get_value(int key, char* value1, int* value2, double* value3) {
     }
 
     // Enviar peticion
-    int opcode = htonl(GET_VALUE);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", GET_VALUE);
+    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
 
-    int key_send = htonl(key);
-    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    sprintf(buffer, "%i", key);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
     
     
     // Recibir respuesta
-    int res;
-    read(socket_desc, &res , sizeof(res));
-    res = ntohl(res);
+    if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
+        printf("Error in readLine\n");
+        return -1;
+    }
+    int res = atoi(buffer);
 
     if (res == -1) {
         return -1;
     }
 
-
-    read(socket_desc, value1 , MAX_VALUE1); 
+    readLine(socket_desc, value1, MAX_LINE); 
     
-    read(socket_desc, &value2 , sizeof(*value2));
-    *value2 = ntohl(*value2);
+    if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
+        printf("Error in readLine\n");
+        return -1;
+    }
+    *value2 = atoi(buffer);
 
     //receive double
-    read(socket_desc, &value3 , sizeof(*value3));
-    double_to_host(value3);
+    if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
+        printf("Error in readLine\n");
+        return -1;
+    }
+    *value3 = atoi(buffer);
 
     // Close socket
     int closing = close(socket_desc);
@@ -207,7 +242,7 @@ int get_value(int key, char* value1, int* value2, double* value3) {
 
 
 int modify_value(int key, char* value1, int value2, double value3) {
-
+    char buffer[MAX_LINE];
 
     if (strlen(value1)>256){
         return -1;
@@ -225,20 +260,25 @@ int modify_value(int key, char* value1, int value2, double value3) {
     }
 
     // Enviar peticion
-    int opcode = htonl(MODIFY_VALUE);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", MODIFY_VALUE);
+    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
 
-    int key_send = htonl(key);
-    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    sprintf(buffer, "%i", key);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
 
-    send(socket_desc , &value1_ , MAX_VALUE1, 0);
+    sendMessage(socket_desc , value1_ , strlen(value1) + 1);
+    
+    sprintf(buffer, "%i", value2);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
 
-    int value2_send = htonl(value2);
-    send(socket_desc , &value2_send , sizeof(value2_send) , 0);
-
-    //send double
-    double_to_network(&value3);
-    send(socket_desc , &value3 , sizeof(value3) , 0);
+    sprintf(buffer, "%f", value3);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
     
     // Recibir respuesta
     int res;
@@ -260,20 +300,22 @@ int modify_value(int key, char* value1, int value2, double value3) {
 
 
 int exist(int key) {
-
     int socket_desc;
     int status_create = create_socket(&socket_desc);
+    char buffer[MAX_LINE];
 
     if (status_create != 0) {
         return -1;
     }
 
     // Enviar peticion
-    int opcode = htonl(EXIST);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", EXIST);
+    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
 
-    int key_send = htonl(key);
-    send(socket_desc , &key_send , sizeof(key_send) , 0);
+    sprintf(buffer, "%i", key);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
     
     
     // Recibir respuesta
@@ -293,6 +335,7 @@ int copy_key(int key1, int key2) {
     
     int socket_desc;
     int status_create = create_socket(&socket_desc);
+    char buffer[MAX_LINE];
 
     if (status_create != 0) {
         return -1;
@@ -302,11 +345,15 @@ int copy_key(int key1, int key2) {
     int opcode = htonl(COPY_KEY);
     send(socket_desc , &opcode , sizeof(opcode) , 0);
 
-    int key1_send = htonl(key1);
-    send(socket_desc , &key1_send , sizeof(key1_send) , 0);
-
-    int key2_send = htonl(key2);
-    send(socket_desc , &key2_send , sizeof(key2_send) , 0);
+    sprintf(buffer, "%i", key1);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
+    
+    sprintf(buffer, "%i", key2);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
+        printf("Error in sendMessage\n");
+    }
     
     
     // Recibir respuesta
