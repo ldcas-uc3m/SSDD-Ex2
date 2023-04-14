@@ -353,8 +353,8 @@ int copy_key(int key1, int key2) {
     }
 
     // Enviar peticion
-    int opcode = htonl(COPY_KEY);
-    send(socket_desc , &opcode , sizeof(opcode) , 0);
+    sprintf(buffer, "%i", COPY_KEY);
+    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
 
     sprintf(buffer, "%i", key1);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
