@@ -180,8 +180,6 @@ int set_value(int key, char* value1, int value2, double value3) {
         printf("Error when sending value 3\n");
         return -1;
     }
-
-    printf("GOOD\n");
     
     // Recibir respuesta
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
