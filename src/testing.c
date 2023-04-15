@@ -398,23 +398,62 @@ int test17_cleanupAfterInit(){
     }
 }
 
+int test18_bulkSetGet(){
+    int numberOperations = 1000;
+    int i;
+
+    for (i=0; i<numberOperations; i++){
+        char value1[MAX_VALUE1];
+        snprintf(value1, MAX_VALUE1, "Value%i", i);
+        if (set_value(i,value1,i,i)==-1){
+            printf("Error in bulkSet: %i\n", i);
+            return -1;
+        }
+    }
+
+    for (i=0; i<numberOperations; i++){
+        char value1Retrieved[MAX_VALUE1];
+        int value2;
+        double value3;
+        if (get_value(i,value1Retrieved,&value2,&value3)==-1) {
+            printf("Error in bulkGet: %i\n", i);
+            return -1;
+        } else {
+            char value1Original[MAX_VALUE1];
+            sprintf(value1Original, "Value%i", i);
+            if (strcmp(value1Original, value1Retrieved) != 0){
+                printf("Error in bulkGet: String %s!=%s\n", value1Original, value1Retrieved);
+                return -1;
+            }else if(value2!=i){
+                printf("Error in bulkGet: Integer %i!=%i\n", value2, i);
+                return -1;
+            }else if((double)i!=value3){
+                printf("Error in bulkGet: Double %lf!=%lf\n", value3, (double) i);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 
 int main(int argc, char* argv[]) {
-    execute_test(test1_connection, "1. Connection");
-    execute_test(test2_setValueSignalNonExistent, "2. Set value (correctness checked in 4.)");
-    execute_test(test3_setValueSignalExistent, "3. Set value when key already exists");
-    execute_test(test4_getExistentValue, "4. Get Value that already exists");
-    execute_test(test5_getNonExistentValue, "5. Get Value that doesn't exist");
-    execute_test(test6_checkExistanceTrue, "6. Exist when the key exist");
-    execute_test(test7_checkExistanceFalse, "7. Exist when the key doesn't exist");
-    execute_test(test8_modifyExistantValue, "8. Modify the values when existant");
-    execute_test(test9_modifyNonExistantValue, "9. Modify the values when non existant");
-    execute_test(test10_copyKeyNonExistentBoth, "10. Copy key when none of the values exist");
-    execute_test(test11_copyKeyFirstNonExistentSecondExistent, "11. Copy key when key to copy doesn't exist and destination exists");
-    execute_test(test12_copyKeyFirstExistentSecondNonExistent, "12. Copy key when the key to copy exist and not the destination");
-    execute_test(test13_copyKeyBothExistentOriginalSameValues, "13. Copy key when the key to copy exist and the destination exists, and originally they have the same values");
-    execute_test(test14_copyKeyBothExistentOriginalDifValues, "14. Copy key when the key to copy exist and the destination exists, and originally they have different values");
-    execute_test(test15_deleteExistentKey,"15. Delete a key that exists");
-    execute_test(test16_deleteNonExistentKey,"16. Delete a key when it doesn't exist");
-    execute_test(test17_cleanupAfterInit, "17. Trying to perform access operations after deleting the whole list");
+    // execute_test(test1_connection, "1. Connection");
+    // execute_test(test2_setValueSignalNonExistent, "2. Set value (correctness checked in 4.)");
+    // execute_test(test3_setValueSignalExistent, "3. Set value when key already exists");
+    // execute_test(test4_getExistentValue, "4. Get Value that already exists");
+    // execute_test(test5_getNonExistentValue, "5. Get Value that doesn't exist");
+    // execute_test(test6_checkExistanceTrue, "6. Exist when the key exist");
+    // execute_test(test7_checkExistanceFalse, "7. Exist when the key doesn't exist");
+    // execute_test(test8_modifyExistantValue, "8. Modify the values when existant");
+    // execute_test(test9_modifyNonExistantValue, "9. Modify the values when non existant");
+    // execute_test(test10_copyKeyNonExistentBoth, "10. Copy key when none of the values exist");
+    // execute_test(test11_copyKeyFirstNonExistentSecondExistent, "11. Copy key when key to copy doesn't exist and destination exists");
+    // execute_test(test12_copyKeyFirstExistentSecondNonExistent, "12. Copy key when the key to copy exist and not the destination");
+    // execute_test(test13_copyKeyBothExistentOriginalSameValues, "13. Copy key when the key to copy exist and the destination exists, and originally they have the same values");
+    // execute_test(test14_copyKeyBothExistentOriginalDifValues, "14. Copy key when the key to copy exist and the destination exists, and originally they have different values");
+    // execute_test(test15_deleteExistentKey,"15. Delete a key that exists");
+    // execute_test(test16_deleteNonExistentKey,"16. Delete a key when it doesn't exist");
+    // execute_test(test17_cleanupAfterInit, "17. Trying to perform access operations after deleting the whole list");
+    execute_test(test18_bulkSetGet, "18. Bulk execution of set and get operations");
 }

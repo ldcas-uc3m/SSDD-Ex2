@@ -8,7 +8,7 @@ cd src/
 
 make
 
-PORT=9995
+PORT=9990
 
 # run tests
 export IP_TUPLAS=localhost

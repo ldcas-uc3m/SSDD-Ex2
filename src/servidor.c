@@ -70,7 +70,6 @@ void *tratar_peticion(int* sd) {
     readLine(local_sd, buffer, MAX_LINE);
     pet.opcode = atoi(buffer);
 
-
     // treat petition
     struct Respuesta res;
     
@@ -93,7 +92,6 @@ void *tratar_peticion(int* sd) {
             break;
 
         case 1:  // set
-
             // get arguments
             readLine(local_sd, buffer, MAX_LINE);
             pet.value.clave = atoi(buffer);
@@ -102,12 +100,12 @@ void *tratar_peticion(int* sd) {
 
             readLine(local_sd, buffer, MAX_LINE);
             pet.value.value2 = atoi(buffer);
+            Log("Clave %i | Value 1 %s | Value 2 %i \n", pet.value.clave, pet.value.value1, pet.value.value2);
 
             readLine(local_sd, buffer, MAX_LINE);
             pet.value.value3 = atof(buffer);
 
             Log("Client %i: Received {opcode: %i (set), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
-
             // execute
             res.result = set(pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
 
@@ -143,7 +141,6 @@ void *tratar_peticion(int* sd) {
             break;
         
         case 3:  // modify
-
             // get arguments
             readLine(local_sd, buffer, MAX_LINE);
             pet.value.clave = atoi(buffer);
@@ -155,6 +152,8 @@ void *tratar_peticion(int* sd) {
 
             readLine(local_sd, buffer, MAX_LINE);
             pet.value.value3 = atof(buffer);
+
+            Log("Modify\n");
 
             Log("Client %i: Received {opcode: %i (modify), key: %i, value1: %s, value2: %i, value3: %f}\n", local_sd, pet.opcode, pet.value.clave, pet.value.value1, pet.value.value2, pet.value.value3);
 

@@ -100,24 +100,24 @@ int init(void) {
         return -1;
     }
 
+    int res=0;
     // Enviar peticion
     sprintf(buffer, "%i", INIT);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in init\n");
+        return -1;
     }
     
     
     // Recibir respuesta
-    int res;
+
 
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error in readLine\n");
+        close(socket_desc);
         return -1;
-    }
-    res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+    }else if (res!=-1){
+        res = atoi(buffer);
     }
 
     // Close socket
@@ -125,8 +125,8 @@ int init(void) {
     if (closing ==-1){
         printf("Error al cerrar el socket\n");
         return -1;
-    }else{
-        return 0;
+    }else {
+        return res;
     }
 }
 
@@ -149,39 +149,46 @@ int set_value(int key, char* value1, int value2, double value3) {
         return -1;
     }
 
+    int res=0;
     // Enviar peticion
     sprintf(buffer, "%i", SET_VALUE);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if (sendMessage(socket_desc, buffer, strlen(buffer) + 1)==-1){
+        printf("Error senting the OPCODE\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error when sending the key\n");
+        return -1;
     }
 
     if (sendMessage(socket_desc , value1_, strlen(value1) + 1) == -1){
         printf("Error when sending value 1\n");
+        return -1;
     }
     
     sprintf(buffer, "%i", value2);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error when sending value 2\n");
+        return -1;
     }
 
 
     sprintf(buffer, "%lf", value3);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error when sending value 3\n");
+        return -1;
     }
+
+    printf("GOOD\n");
     
     // Recibir respuesta
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error reading the response\n");
-        return -1;
-    }
-    int res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+        res = -1;
+    }else if(res!=-1){
+        res = atoi(buffer);
     }
 
     // Close socket
@@ -191,13 +198,12 @@ int set_value(int key, char* value1, int value2, double value3) {
         return -1;
     }
 
-    return 0;
+    return res;
 }
 
 
 int get_value(int key, char* value1, int* value2, double* value3) {
     char buffer[MAX_LINE];
-
     int socket_desc;
     int status_create = create_socket(&socket_desc);
 
@@ -205,41 +211,52 @@ int get_value(int key, char* value1, int* value2, double* value3) {
         return -1;
     }
 
+    int res=0;
     // Enviar peticion
     sprintf(buffer, "%i", GET_VALUE);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if(sendMessage(socket_desc , buffer , strlen(buffer) + 1)==-1){
+        printf("Error sending the OPCODE\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
-    
     
     // Recibir respuesta
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
-        printf("Error in readLine\n");
-        return -1;
-    }
-    int res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+        printf("Error in readLine res\n");
+        res=-1;
+    }else if (res!=-1){
+        res = atoi(buffer);
     }
 
-    readLine(socket_desc, value1, MAX_LINE); 
+    if (readLine(socket_desc, value1, MAX_LINE)==-1){
+        printf("Error in readline value1\n");
+        return -1;
+    }
     
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
-        printf("Error in readLine\n");
-        return -1;
+        printf("Error in readLine value2\n");
+        res=-1;
+    }else if (res!=-1){
+        *value2 = atoi(buffer);
     }
-    *value2 = atoi(buffer);
+    
 
     //receive double
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
-        printf("Error in readLine\n");
-        return -1;
+        printf("Error in readLine value 3\n");
+        int closing = close(socket_desc);
+        if (closing ==-1){
+            printf("Error al cerrar el socket\n"); 
+        }
+        res = -1;
+    }else if (res!=-1){
+        *value3 = atof(buffer);
     }
-    *value3 = atof(buffer);
 
     // Close socket
     int closing = close(socket_desc);
@@ -248,7 +265,7 @@ int get_value(int key, char* value1, int* value2, double* value3) {
         return -1;
     }
 
-    return 0;
+    return res;
 }
 
 
@@ -270,37 +287,45 @@ int modify_value(int key, char* value1, int value2, double value3) {
         return -1;
     }
 
+    int res=0;
+
     // Enviar peticion
     sprintf(buffer, "%i", MODIFY_VALUE);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if (sendMessage(socket_desc , buffer , strlen(buffer) + 1)==-1){
+        printf("Error sending the OPCODE\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
 
-    sendMessage(socket_desc , value1_ , strlen(value1) + 1);
+    if (sendMessage(socket_desc , value1_ , strlen(value1_) + 1)==-1){
+        printf("Error in sendMessage\n");
+    }
     
     sprintf(buffer, "%i", value2);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
 
     sprintf(buffer, "%lf", value3);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
     
     // Recibir respuesta
-    int res;
+    
+    
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error in readLine\n");
-        return -1;
-    }
-    res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+        res=-1;
+    }else if (res!=-1){
+        res = atoi(buffer);
     }
 
     // Close socket
@@ -310,7 +335,7 @@ int modify_value(int key, char* value1, int value2, double value3) {
         return -1;
     }
 
-    return 0;
+    return res;
 }
 
 
@@ -323,26 +348,29 @@ int exist(int key) {
         return -1;
     }
 
+    int res=0;
+
     // Enviar peticion
     sprintf(buffer, "%i", EXIST);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if (sendMessage(socket_desc , buffer , strlen(buffer) + 1)==-1){
+        printf("Error in sendMessage\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
     
     
     // Recibir respuesta
-    int res;
+    
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error in readLine\n");
-        return -1;
-    }
-    res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+        res=-1;
+    }else if(res!=-1){
+        res = atoi(buffer);
     }
 
     // Close socket
@@ -366,32 +394,36 @@ int copy_key(int key1, int key2) {
         return -1;
     }
 
+    int res=0;
     // Enviar peticion
     sprintf(buffer, "%i", COPY_KEY);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if (sendMessage(socket_desc , buffer , strlen(buffer) + 1)==-1){
+        printf("Error in sendMessage\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key1);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
     
     sprintf(buffer, "%i", key2);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
     
     
     // Recibir respuesta
-    int res;
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error in readLine\n");
-        return -1;
+        res=-1;
+    }else if(res!=-1){
+        res = atoi(buffer);
     }
-    res = atoi(buffer);
 
-    if (res == -1) {
-        return -1;
-    }
+    
 
     // Close socket
     int closing = close(socket_desc);
@@ -400,7 +432,7 @@ int copy_key(int key1, int key2) {
         return -1;
     }
 
-    return 0;
+    return res;
 }
 
 
@@ -413,26 +445,27 @@ int delete_key(int key){
         return -1;
     }
 
+    int res=0;
     // Enviar peticion
     sprintf(buffer, "%i", DELETE_KEY);
-    sendMessage(socket_desc , buffer , strlen(buffer) + 1);
+    if (sendMessage(socket_desc , buffer , strlen(buffer) + 1)==-1){
+        printf("Error in sendMessage\n");
+        return -1;
+    }
 
     sprintf(buffer, "%i", key);
     if (sendMessage(socket_desc, buffer, strlen(buffer) + 1) == -1) {
         printf("Error in sendMessage\n");
+        return -1;
     }
-    
     
     // Recibir respuesta
-    int res;
+
     if (readLine(socket_desc, buffer, MAX_LINE) == -1) {
         printf("Error in readLine\n");
-        return -1;
-    }
-    res = atoi(buffer);
-
-    if (res == -1) {
-        return -1;
+        res=-1;
+    }else if(res!=-1){
+        res = atoi(buffer);
     }
 
     // Close socket
