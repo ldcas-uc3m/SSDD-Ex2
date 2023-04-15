@@ -6,20 +6,24 @@
 
 cd src/
 
-# compile
-make servidor
-make tests
+make
+
+PORT=9995
+
+# run tests
+export IP_TUPLAS=localhost
+export PORT_TUPLAS=$PORT
 
 # link dynamic library
 export LD_LIBRARY_PATH=lib/
 
 # run server
-./servidor 8080 &
+./servidor $PORT &
+pid_servidor=$!
 
-# run tests
-export IP_TUPLAS=localhost
-export PORT_TUPLAS=8080
+sleep 1
 
-./test_linked_list
-./test_conc
-./test_seq
+./testing
+
+echo "Killing server at $pid_servidor"
+kill $pid_servidor

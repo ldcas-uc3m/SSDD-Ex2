@@ -14,5 +14,6 @@ int modify(int key, char* value1, int value2, double value3);
 int copy_key(int key1, int key2);
 int delete_key(int key);
 void destroy();
+void print_list();
 
 #endif

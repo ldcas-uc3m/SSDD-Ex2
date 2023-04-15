@@ -1,4 +1,4 @@
-BIN_FILES  = cliente servidor
+BIN_FILES  = cliente servidor testing
 TEST_FILES = test_seq test_conc test_linked_list
 VPATH = lib tests  # path with source files not found in current dir
 CC = gcc
@@ -11,24 +11,16 @@ LDLIBS = -pthread -lm -lrt
 all: $(BIN_FILES)
 .PHONY : all
 
-cliente: cliente.o libclaves.so linked_list.o
+cliente: cliente.o libclaves.so log.o log.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 	
-servidor: servidor.o server_impl.o linked_list.o lines.o
+servidor: servidor.o server_impl.o linked_list.o lines.o log.o log.h
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
-
 	
 libclaves.so: claves.o lines.o
 	$(CC) -shared $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
-
-test_linked_list: test_linked_list.o linked_list.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
-
-test_conc: test_conc.o libclaves.so
-	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
-	
-test_seq: test_seq.o libclaves.so
+testing: testing.o libclaves.so
 	$(CC) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -L$(INSTALL_PATH) -lclaves $^ -o $@
 
 

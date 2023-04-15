@@ -93,3 +93,7 @@ void destroy() {
 
     return;
 }
+
+void print_list() {
+    printList(list);
+}
