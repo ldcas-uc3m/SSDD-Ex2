@@ -1,11 +1,10 @@
 exclude_file
-report
 README.md
 img
-run.sh
 zip.sh
 .git*
 servidor
 cliente
+testing
 *.o
 *.so
