@@ -1,0 +1,41 @@
+\section{Diseño e implementación}
+El diseño y la implementación del servidor y la parte de las linked\_lists utiliza como base la desarrollada en la anterior práctica, cambiando el sistema de comunicación por sockets TCP, al igual que en la parte del cliente. El diseño del cliente no incluye el sistema de pruebas y es solo un ejemplo base que se puede utilizar con el servidor.
+
+\subsection{Peticiones y respuestas (lines.c y lines.h)}
+
+En esta práctica, tanto el servidor como el cliente se comunican por medio de sockets TCP orientados a conexión (por tanto, a la hora de definir los sockets, se usan como parámeteros AF\_INET para el dominio, SOCK\_STREAM para el tipo y IPPROTO\_TCP para el protocolo).
+
+Las comunicaciones se llevan a cabo mediante el envío de bufferes de datos que se tratan como una string genérica e independiente del hardware y el software del cliente y del servidor. Las funciones de lectura y escritura para los bufferes de mensajes se definen en el archivo lines.c y se basan en el envío de bytes de memoria (que funcionan con un for interno para evitar que se manden bytes de menos en cada una de las operaciones). Se basan en las funciones read y write que ya están definidas dentro de las clases de sockets pero implementan este control de bytes recibidos/enviados.
+
+Las peticiones y respuestas tienen en cuenta cada tipo de operación pero siempre empiezan con el envío de un código de operación que define la función que se quiere ejecutar en el servidor. Dependiendo de esto, tanto el archivo de implementación del cliente como del servidor controlan el numero de reads y writes que se deben ejecutar. Por ejemplo, en el caso de la función set\_value, la implementación del cliente se encarga de enviar un buffer por cada uno de los valores a setear (es decir, un para el integer, otro para el string y otro para el double) y lo contrario para la implmentación del servidor (que tendrá tres reads para cada uno de los valores).
+
+\subsection{Servidor}
+
+El server-side está dividido en servidor y server\_impl. Ambas se complementan a la hora de procesar la información del cliente y acceder a las linked lists dependiendo de la función que se quiera realizar, y posteriormente enviar al cliente la información requerida.
+
+El principal cambio con respecto a la práctica anterior es el sistema de sockets que se definen de la misma manera que en el caso del cliente. En esta práctica se ha incluido un parámetro para el puerto que se le envía por linea de comandos al servidor y que define en qué puerto se harán las comunicaciones con el cliente (se coge por medio de una lectura del parámetro argv[1]).
+
+Incluimos handling de errores en caso fallo tanto en el envío como en la lectura de los mensajes por si hay un error inesperado en el protocolo. También controla los mensajes de error generados por la linked list en caso de no poder procesar la petición correctamente o que se haya pedido un dato inexistente en la base de datos.
+
+\subsubsection{Linked Lists}
+Manteniendo nuestra idea de la anterior práctica, y teniendo en cuenta que el número de elementos a guardar en el servidor no deber ser limitado por la estructura de datos definida, decidimos seguir con la implementación por medio de linked lists. 
+
+La implementación está incluida en los ficheros linked\_list.c y linked\_list.h, y se importa en la implementación del servidor, ya que esta es la clase que se encarga de la comunicación con la estructura de datos. El cliente en ningún momento puede ver las estructuras de datos, al igual que pasaría en un sistema cliente-servidor real.
+
+Se ha mantenido el sistema de la práctica anterior, mejorando los mutex empleados para evitar ningún acceso  modificación indeseada durante el procesamiento de los datos por parte del servidor. Esto nos asegura que aunque los clientes intenten crear peticiones de manera concurrente, el servidor tendrá en cuenta las órdenes atómicamente y no se modificará de manera errónea la información.
+
+Las linked lists se organizan mediante nodos, que incluyen una integer key, un char para el almacenamiento de la cadena de caracteres correspondiente a value1, así como integer y double para el almacenamiento de value3 y value3 respectivamente. Además se incluye una referencia al siguiente nodo por medio de un puntero. Al guardar valores se hace como en el caso de una pila, incluyendo el valor en el nodo head de la Linked List,
+
+Todas las funciones necesarias para el funcionamiento del sistema están implementadas como una función de la linked lists, incluyendo mutex en los accesos críticos a la información y haciendo control de errores para asegurarnos que una función no se ejecute si no se necesita. Siempre se comprueba la existencia de la clave en la lista y posteriormente se realizan las operaciones necesarias teniendo en cuenta si es una lista vacía y los parámetros de existencia de clave necesarios en algunas de las funciones.
+
+Todas las decisiones de diseño de estas linked lists tienen en cuenta los tipos de datos necesarios para el funcionamiento del sistema, así como la existencia de multiples hilos para cada petición de los clientes. Los tests de los que hablaremos en la sigiente sección nos garantizan el buen funcionamiento del sistema sin importar el numero de operaciones del cliente ni los clientes.
+
+\subsection{API del Cliente}
+
+Por último, el diseño del cliente tiene en cuenta que no se debe hacer ningun acceso a sockets desde la clase pricipla y que el cliente solo debería usar las diferentes funciones de la librería dinámica. El archivo de cliente solo enseña uno de los múltiples casos que se pueden dar a la hora de crear peticiones pero no está diseñado como método de testeo del sistema (eso se define en la sección siguiente dentro del archivo testing y los codigos de ejecucion .sh). 
+
+La librería dinámica libclaves.so se encarga de la comunicación con el servidor por medio de sockets e incluye todos los cambios de tipo de dato a buffers de datos (para no enviar ninguna estructura específica de C a través de los sockets). También define los controles de los datos introducidos por el usuario, asegurandonos que los datos introducidos son correctos. 
+
+Incluimos handling de errores en caso fallo tanto en el envío como en la lectura de los mensajes por si hay un error inesperado en el protocolo. También controla los mensajes de error enviados por el servidor para ver si ha tenido éxito la petición enviada por el usuario.
+
+El principal cambio es que eliminamos la función tratarPetición del client-side y controlamos mediante funciones específicas para cada operación. Hemos añadido una función genérica para la apertura de sockets ya que en todas las funciones debemos crearlo a la hora de enviar la peticion al servidor. Además añadimos, para el protocolo de comunicación un acceso a las variables globales PORT\_TUPLAS Y IP\_TUPLAS para definir como debe comunicarse con el servidor (definiendo en que puerto y a que ip se debe hacer la conexión).

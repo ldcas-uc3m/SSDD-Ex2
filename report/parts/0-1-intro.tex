@@ -1,0 +1,20 @@
+\section{Introducción y consideraciones generales}
+
+Esta práctica parte de una implementación cliente-servidor hecha con Linked Lists y comunicada por medio de sockets orientados a conexión mediante protocolo TCP. 
+
+La funcionalidad de cada archivo (específica de nuestra práctica y que se explicará más tarde con profundidad) es:
+\begin{itemize}
+    \item testing: funciones de testeo con todos los casos posibles para cada una de las funciones incluidas multiejecuciones de hasta 2000 operaciones para comprobar la robustez del código.
+    \item test.sh: tests para un solo cliente usando las funciones definidas en testing.
+    \item test\_async.sh: tests para multiclientes concurrents usando las funciones definidas en testing. 
+    \item log: systema de logging para mostrar los mensajes del servidor en caso de debuggeo.
+    \item linked\_lists: funcionalidad de la estructura de datos para guardar los pares tuplas valor que se mandan del cliente al servidor
+    \item libclaves.so: libreria dinamica con la implementación de las funciones con sockets en el lado del cliente.
+    \item lines: funciones para la lectura y escritura de buffers de datos que se usarán para la comunicación del servidor
+    \item comm: archivo comun donde se definen las variables comunes tanto a la implementacion del servidor como a la libreria de comunicacion del lado del cliente.
+    \item server\_impl: implementacion de las funciones y comunicacion con la estructura de datos
+    \item servidor: codigo base del servidor
+    \item client: ejemplo de cliente (no es el archivo base utilizado para las pruebas).
+\end{itemize}
+
+En los siguientes apartados se detallarán las decisiones de diseño así como la construcción del makefile, como ejecutar tanto el servidor cliente como los tests de funcionalidad y las diferentes pruebas que se han realizado.

@@ -1,0 +1,21 @@
+\section{Compilación y ejecución}
+\subsection{Compilación}
+El archivo de make se mantiene de la anterior práctica pero añadiendo los archivos para el procesamiento de bufferes de datos (lines.c) y los archivos de test para poder probar la funcionalidad del servidor y de las librerias dinámicas del cliente.
+
+Al igual que en la práctica anterior añadimos las distintas flags necesarias para generar el código independiente de la máquina y permitir el linkeado dinámico de la librería libclaves.so. Las flags añadidas son "-fPIC", "-lclaves" y "-shared", la primera evitando los limites de la tabla global de offset, la segunda que linkea la librería dinámica con el archivo principal y la tercera para compilar las el archivo de claves en la librería dinámica.
+
+\begin{lstlisting}
+    libclaves.so: claves.o
+        $(CC) -shared $(CFLAGS) $(LDFLAGS) $(LDLIBS) $^ -o $@
+\end{lstlisting}
+
+El fichero de make incluye también un make clean para eliminar todos los archivos de compilación intermedia.
+
+Por último, y como añadido en esta práctica, hemos incluido en el fichero make los comandos para la compilación del fichero de test (que incluye un linkeado a la libreria dinámica del cliente, ya que funciona como un generador de peticiones de cliente automático). 
+
+\subsection{Ejecución}
+La ejecución se puede hacer de dos maneras, dependiendo de si queremos testear el sistema o ejecutar el archivo del cliente. 
+
+Para la ejecución del archivo de cliente se deben abrir dos terminarles. Primero lanzamos el servidor, incluyendo en el comando el puerto donde se comunicará con el cliente, y posteriormente y tras haber definido las ip y el puerto de manera global, ejecutamos el cliente en otro terminal. Podremos ver como el servidor devuelve (en caso de que el debugging este activo en el archivo de Log) los diferentes mensajes que está recibiendo.
+
+Para la ejecución de los tests, se puede ejecutar de la misma manera que el cliente pero ejecutando testings en vez de client o utilizando los archivos de bash que están incluidos en el archivo zip de esta entrega. Cada uno lanza el servidor además de las pruebas correspondientes. En la siguiente sección explicamos el funcionamiento de cada uno de ellos.
